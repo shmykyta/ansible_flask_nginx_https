@@ -1,0 +1,6 @@
+- name: 'Test task from takeoff'
+  hosts: "{{ host }}"
+  become_user: root
+  become: yes
+  roles:
+    - init
