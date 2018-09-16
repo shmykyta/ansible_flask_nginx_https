@@ -1,0 +1,8 @@
+---
+- import_tasks: init.yml
+
+- import_tasks: app_build.yml
+
+- import_tasks: systemd.yml
+
+- import_tasks: nginx.yml

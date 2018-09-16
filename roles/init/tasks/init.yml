@@ -1,0 +1,53 @@
+---
+- meta: endplay
+  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version < '16'
+
+- name: 'Add group {{ user_add }}'
+  group:
+    name: '{{ user_add }}'
+    state: present
+
+- name: 'Add {{ user_add }} and add it to sudo'
+  user:
+    name: '{{ user_add }}'
+    state: present
+    createhome: yes
+  become: yes
+  become_method: "sudo"
+
+- name: make folders
+  file:
+    state: directory
+    path: '{{ item }}'
+    owner: '{{ app_user }}'
+    group: '{{ app_user }}'
+  with_items:
+    - '{{ log_dir }}'
+    - '{{ app_dir }}'
+    - '{{ app_source_dir }}'
+    - '{{ config_dir }}'
+- file:
+    src: '{{ config_dir }}'
+    dest: '{{ app_dir }}/conf'
+    state: link
+
+
+- name: 'install packages'
+  apt:
+    name: python3,uwsgi,uwsgi-emperor,uwsgi-plugin-python3,nginx-full,git,systemd,python3-pip,python3-dev,nginx
+    state: present
+    update_cache: yes
+
+- name: 'install various libraries with pip'
+  action: pip3 name={{ item }} state=present
+  with_items:
+    - virtualenv
+    - supervisor
+    - uwsgi
+
+- name: 'clone app'
+  template:
+    src: 'helloworld.py.j2'
+    dest: '{{ app_source_dir }}'
+  become: yes
+  become_user: '{{ app_user }}'

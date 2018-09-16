@@ -1,0 +1,26 @@
+---
+- name: get uwsgi static root
+  shell: 'ls -d -1 {{ venv_dir }}/lib/python*/site-packages/{{ app_module }}/static'
+  register: uwsgi_static_root
+- name: get uwsgi static folders
+  shell: 'ls -d -1 {{ venv_dir }}/lib/python*/site-packages/{{ app_module }}/static/**'
+  register: uwsgi_static_folders
+
+- name: nginx config
+  template:
+    src: templates/nginx.conf.j2
+    dest: '/etc/nginx/sites-available/{{ app_name }}.conf'
+    mode: 'u=rwx,g=rx,o=rx'
+  notify:
+     - '{{ ansible_distribution }} {{ init_type }} restart nginx'
+
+- file:
+    path: '/etc/nginx/sites-enabled/default'
+    state: absent
+
+- file:
+    src: '/etc/nginx/sites-available/{{ app_name }}.conf'
+    dest: '/etc/nginx/sites-enabled/{{ app_name }}.conf'
+    state: link
+  notify:
+     - '{{ ansible_distribution }} {{ init_type }} restart nginx'

@@ -1,0 +1,33 @@
+---
+- name: 'Copy script'
+  template:
+    src: templates/systemd.j2
+    dest: '/etc/systemd/system/{{ app_name }}.service'
+    mode: 755
+
+- name: 'Script start'
+  template:
+    src: templates/astart.sh.j2
+    dest: "{{ app_dir }}/{{ app_name }}.sh"
+    owner: '{{ app_user }}'
+    group: '{{ app_user }}'
+    mode: 755
+  notify:
+    - '{{ ansible_distribution }} systemd restart {{ app_name }}'
+
+- name: uwsgi configs
+  template:
+    src: templates/uwsgi.ini.j2
+    dest: "{{ config_dir }}/{{ app_name }}.ini"
+    owner: '{{ app_user }}'
+    group: '{{ app_user }}'
+    mode: 744
+  notify:
+    - '{{ ansible_distribution }} systemd restart {{ app_name }}'
+
+- name: 'systemd start {{ app_name }}'
+  systemd:
+    name: '{{ app_name }}'
+    state: started
+    enabled: yes
+    daemon_reload: yes
