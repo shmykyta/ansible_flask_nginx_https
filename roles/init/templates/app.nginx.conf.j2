@@ -1,6 +1,6 @@
 server {
     listen 80 default;
-    return 302 https://localhost:443;
+    return 302 https://{{ ansible_eth0.ipv4.address }}$request_uri;
 }
 
 server {
