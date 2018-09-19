@@ -27,4 +27,4 @@
     dest: '/etc/systemd/system/{{ app_name }}.service'
   notify: restart {{ app_name }}
   become: yes
-  become_user: '{{ app_user }}'
+  become_user: root

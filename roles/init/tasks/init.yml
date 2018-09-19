@@ -43,7 +43,6 @@
     owner: '{{ app_user }}'
     group: '{{ app_user }}'
   with_items:
-    - '{{ log_dir }}'
     - '{{ app_dir }}'
     - '{{ app_log_dir }}'
 
