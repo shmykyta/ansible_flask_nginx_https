@@ -1,26 +1,97 @@
 ---
-- name: get uwsgi static root
-  shell: 'ls -d -1 {{ venv_dir }}/lib/python*/site-packages/{{ app_module }}/static'
-  register: uwsgi_static_root
-- name: get uwsgi static folders
-  shell: 'ls -d -1 {{ venv_dir }}/lib/python*/site-packages/{{ app_module }}/static/**'
-  register: uwsgi_static_folders
+# Due to https://github.com/geerlingguy/ansible-role-nginx/issues/151
 
-- name: nginx config
+- name: 'Nginx service'
   template:
-    src: templates/nginx.conf.j2
-    dest: '/etc/nginx/sites-available/{{ app_name }}.conf'
-    mode: 'u=rwx,g=rx,o=rx'
-  notify:
-     - '{{ ansible_distribution }} {{ init_type }} restart nginx'
+    src: 'nginx.service.j2'
+    dest: '/etc/systemd/system/nginx.service'
 
-- file:
+- name: 'nginx main config'
+  template:
+    src: 'nginx.conf.j2'
+    dest: '/etc/nginx/nginx.conf'
+    group: root
+    owner: root
+    mode: 0644
+
+- name: 'nginx config for app {{ app_name }}'
+  template:
+    src: 'app.nginx.conf.j2'
+    dest: '/etc/nginx/sites-available/{{ app_name }}.conf'
+    mode: 0755
+
+- name: 'remove default nginx site config'
+  file:
     path: '/etc/nginx/sites-enabled/default'
     state: absent
 
-- file:
+- name: 'Link available and enabled'
+  file:
     src: '/etc/nginx/sites-available/{{ app_name }}.conf'
     dest: '/etc/nginx/sites-enabled/{{ app_name }}.conf'
     state: link
-  notify:
-     - '{{ ansible_distribution }} {{ init_type }} restart nginx'
+  become: yes
+  become_user: '{{ app_user }}'
+
+- name: 'open firewall for nginx'
+  ufw:
+    rule: allow
+    name: Nginx Full
+
+- name: 'Create dir for certs'
+  file:
+    path: '{{ nginx_cert_path }}'
+    state: directory
+    mode: 0755
+
+- name: 'Generate an OpenSSL private key'
+  openssl_privatekey:
+    path: '{{ path_ssl }}/private/{{ app_name }}.pem'
+
+- name: 'Create directory'
+  file:
+    path: '{{ path_ssl }}/csr'
+    state: directory
+    mode: 0755
+
+- name: 'generate certificate sign'
+  openssl_csr:
+    path: '{{ path_ssl }}/csr/{{ app_name }}.csr'
+    privatekey_path: '{{ path_ssl }}/private/{{ app_name }}.pem'
+    country_name: 'UA'
+    organization_name: 'Nikita'
+    email_address: 'shubin.mykyta@gmail.com'
+    common_name: '{{ app_name }}'
+
+# Issue for python2.7 and cryptography.
+# Error 'https://cryptography.io/en/latest/_modules/cryptography/hazmat/primitives/constant_time/'
+# https://cryptography.io/en/latest/_modules/cryptography/hazmat/primitives/constant_time/
+
+- name: 'downgrade cryptography'
+  shell: "sudo -i -- sh -c 'pip install cryptography==2.2.2'"
+
+- name: 'generate self signed certificate'
+  openssl_certificate:
+    path: '{{ path_ssl }}/{{ app_name }}.crt'
+    privatekey_path: '{{ path_ssl }}/private/{{ app_name }}.pem'
+    csr_path: '{{ path_ssl }}/csr/{{ app_name }}.csr'
+    provider: selfsigned
+
+- name: 'copy ssl certificate'
+  copy:
+    src: '{{ path_ssl }}/{{ app_name }}.crt'
+    dest: '{{ nginx_cert_path }}/{{ app_name }}.crt'
+    remote_src: true
+    owner: root
+    group: root
+    mode: 0644
+
+- name: 'copy ssl certificate key'
+  copy:
+    src: '{{ path_ssl }}/private/{{ app_name }}.pem'
+    dest: '{{ nginx_cert_path }}/{{ app_name }}.pem'
+    remote_src: true
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart nginx

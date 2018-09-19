@@ -3,6 +3,7 @@
 
 - import_tasks: app_build.yml
 
-- import_tasks: systemd.yml
-
 - import_tasks: nginx.yml
+
+- import_tasks: app_update.yml
+  tags: [ 'app_update' ]

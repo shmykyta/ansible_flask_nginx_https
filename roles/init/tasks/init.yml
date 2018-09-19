@@ -1,6 +1,6 @@
 ---
-- meta: endplay
-  when: ansible_distribution == 'Ubuntu' and ansible_distribution_major_version < '16'
+- meta: end_play
+  when: ansible_distribution != 'Ubuntu'
 
 - name: 'Add group {{ user_add }}'
   group:
@@ -10,12 +10,33 @@
 - name: 'Add {{ user_add }} and add it to sudo'
   user:
     name: '{{ user_add }}'
-    state: present
+    password: '{{ user_pass }}'
+    group: '{{ user_add }}'
+    generate_ssh_key: yes
+    groups: sudo
     createhome: yes
+    state: present
   become: yes
-  become_method: "sudo"
+  become_method: 'sudo'
 
-- name: make folders
+- name: 'Allow connect using login and pass'
+  lineinfile:
+    path: '{{ ssh_conf }}'
+    regexp: 'PasswordAuthentication no'
+    line: 'PasswordAuthentication yes'
+    state: present
+  become: true
+  become_method: sudo
+
+# module service don't work properly, so just used some shell
+
+- name: 'restart ssh service'
+  shell: "sudo -i -- sh -c 'service ssh restart'"
+
+- name: 'Wait for ssh will avaible'
+  wait_for: port=22 state=started
+
+- name: 'Make folders for app'
   file:
     state: directory
     path: '{{ item }}'
@@ -24,30 +45,32 @@
   with_items:
     - '{{ log_dir }}'
     - '{{ app_dir }}'
-    - '{{ app_source_dir }}'
-    - '{{ config_dir }}'
-- file:
-    src: '{{ config_dir }}'
-    dest: '{{ app_dir }}/conf'
-    state: link
-
+    - '{{ app_log_dir }}'
 
 - name: 'install packages'
   apt:
-    name: python3,uwsgi,uwsgi-emperor,uwsgi-plugin-python3,nginx-full,git,systemd,python3-pip,python3-dev,nginx
-    state: present
+    name: python3,uwsgi,nginx-full,git,systemd,python3-pip,python3-dev,nginx,python-pip,python-dev
+    state: latest
+    update_cache: yes
+
+- name: 'Upgrade pip'
+  pip:
+    name: pip
+    extra_args: --upgrade
+
+- name: 'Update and upgrade apt packages'
+  become: true
+  apt:
+    upgrade: yes
     update_cache: yes
 
 - name: 'install various libraries with pip'
-  action: pip3 name={{ item }} state=present
+  pip:
+    name: '{{ item }}'
+    state: latest
   with_items:
     - virtualenv
     - supervisor
     - uwsgi
-
-- name: 'clone app'
-  template:
-    src: 'helloworld.py.j2'
-    dest: '{{ app_source_dir }}'
-  become: yes
-  become_user: '{{ app_user }}'
+    - PyOpenSSL
+    - setuptools

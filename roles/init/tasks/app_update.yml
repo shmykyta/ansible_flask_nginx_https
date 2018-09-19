@@ -1,0 +1,20 @@
+---
+- name: 'clone app from repo'
+  git:
+    repo: '{{ app_repo }}'
+    dest: '{{ app_dir }}/{{ app_name }}'
+    update: yes
+  become: yes
+  become_user: '{{ app_user }}'
+
+- name: 'systemd start {{ app_name }}'
+  systemd:
+    name: '{{ app_name }}'
+    state: restarted
+    daemon_reload: yes
+
+- name: 'restart nginx'
+  systemd:
+    name: nginx
+    state: restarted
+    daemon_reload: yes

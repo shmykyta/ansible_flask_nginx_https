@@ -1,0 +1,12 @@
+---
+- name: 'restart nginx'
+  systemd:
+    name: 'nginx'
+    state: restarted
+    daemon_reload: yes
+
+- name: 'restart {{ app_name }}'
+  systemd:
+    name: '{{ app_name }}'
+    state: restarted
+    daemon_reload: yes
