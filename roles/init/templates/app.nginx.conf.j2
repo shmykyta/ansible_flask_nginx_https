@@ -1,6 +1,6 @@
 server {
     listen 80 default;
-    return 302 https://{{ ansible_eth0.ipv4.address }}$request_uri;
+    return 302 https://{{ inventory_hostname }}$request_uri;
 }
 
 server {

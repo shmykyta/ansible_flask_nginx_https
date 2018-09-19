@@ -2,6 +2,9 @@
 - meta: end_play
   when: ansible_distribution != 'Ubuntu'
 
+- debug:
+    msg: 'Ip address of host is {{ inventory_hostname }}'
+
 - name: 'Add group {{ user_add }}'
   group:
     name: '{{ user_add }}'
