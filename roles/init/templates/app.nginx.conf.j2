@@ -1,12 +1,10 @@
 server {
     listen 80 default;
-    server_name {{ host }};
-    return 302 https://{{ host }}$request_uri;
+    return 302 https://localhost:443;
 }
 
 server {
     listen 443 ssl default_server;
-    server_name {{ host }};
 
     ssl_certificate     {{ nginx_cert_path }}/{{ app_name }}.crt;
     ssl_certificate_key {{ nginx_cert_path }}/{{ app_name }}.pem;
